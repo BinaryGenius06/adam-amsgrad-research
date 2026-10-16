@@ -1,5 +1,6 @@
+from optimizers import Adam
+from counterexample import get_gradient, run_counterexample
 import matplotlib.pyplot as plt
-from optimizers import Adam, get_gradient, run_counterexample
 
 # Define the grid of parameters to test
 beta1_values = [0.0, 0.1, 0.3, 0.5, 0.7, 0.9, 0.99]

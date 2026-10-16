@@ -1,5 +1,10 @@
-import numpy as np
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from optimizers import SGD, Momentum, Adam, AMSGrad
+import numpy as np
+
 
 # Outer loop to test on the toy function f(theta) = theta^2.
 def test_toy_problem(optimizer, opt_name, steps=50):

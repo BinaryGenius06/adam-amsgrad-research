@@ -1,5 +1,10 @@
-import numpy as np
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from optimizers import Adam, AMSGrad
+import numpy as np
+
 
 if __name__ == "__main__":
     print("--- Day 4: Adam Manual Verification ---")
