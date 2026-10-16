@@ -1,0 +1,160 @@
+\documentclass[10pt,twocolumn]{article}
+\usepackage[margin=0.9in,columnsep=0.3in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{url}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,citecolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+
+\DeclareMathOperator*{\argmin}{arg\,min}
+\newcommand{\Proj}{\Pi_{\mathcal{F}}}
+
+\title{Empirical Diagnostics of Adaptive Optimization:\\
+Replicating the Period-3 Convergence Trap in Adam\thanks{Code, figures, and the full \texttt{pytest} suite are available at \url{https://github.com/USERNAME/REPO} (replace with your repository URL).}}
+\author{Suryansh U.\\
+Indian Institute of Technology (IIT) Delhi}
+\date{October 16, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+While the Adam optimizer dominates modern stochastic optimization, its formal convergence proof within the Online Convex Optimization (OCO) framework relies on a mathematically unfulfilled assumption. In environments characterized by sparse, highly informative gradient bursts, Adam's exponential moving average of squared gradients decays prematurely. This decay violates the positive semi-definiteness condition of the differential metric matrix ($\Gamma_t \succeq 0$), forcing divergence. We present a verified, from-scratch NumPy reproduction of this theoretical failure mechanism, expanding the diagnostic analysis across variance memory, parameter trajectories, and effective step-size inflation. The full implementation and testing suite are available at \url{https://github.com/USERNAME/REPO}.
+\end{abstract}
+
+%====================================================================
+\section{Introduction}
+Adam~\cite{kingma2015adam} synthesizes the coordinate-wise scaling of AdaGrad~\cite{duchi2011adagrad} with the exponential moving averages (EMA) of RMSProp~\cite{tieleman2012rmsprop}. By heavily discounting older gradients, Adam adapts rapidly to non-stationary objective landscapes. However, Reddi et al.~\cite{reddi2018convergence} demonstrated that Adam diverges on elementary one-dimensional convex objectives when exposed to infrequent but massive gradient bursts. The second-moment estimate decreases rapidly during non-burst iterations, causing the effective step size to artificially explode. AMSGrad resolves this by enforcing a monotonic running maximum on the raw second-moment accumulator.
+
+%--------------------------------------------------------------------
+\begin{figure*}[t]
+\centering
+\begin{minipage}[t]{0.485\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figs/fig1_variance.png}
+  \caption{Adam (red) exhibits exponential memory decay during non-burst steps. AMSGrad (blue) enforces monotonicity.}
+  \label{fig:variance}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.485\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{figs/fig2_stepsize.png}
+  \caption{Effective step size inflation. Adam's step size (red) spikes rhythmically due to the decaying denominator.}
+  \label{fig:stepsize}
+\end{minipage}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.6\textwidth]{figs/fig3_trajectory.png}
+\caption{Optimization trajectory on $[-1,1]$. Adam diverges to the sub-optimal boundary while AMSGrad converges.}
+\label{fig:trajectory}
+\end{figure*}
+%--------------------------------------------------------------------
+
+
+%====================================================================
+\section{Theoretical Framework}
+\subsection{OCO setting and regret}
+At each round $t=1,\dots,T$, the learner selects $x_t\in\mathcal{F}$, where $\mathcal{F}\subset\mathbb{R}^d$ is a compact convex set, and then observes a convex loss $f_t$ with gradient $g_t=\nabla f_t(x_t)$~\cite{zinkevich2003online}. Performance is measured by the regret
+\begin{equation}
+R_T \;=\; \sum_{t=1}^{T} f_t(x_t)\;-\;\min_{x\in\mathcal{F}}\sum_{t=1}^{T} f_t(x).
+\label{eq:regret}
+\end{equation}
+An algorithm converges in the OCO sense if $R_T=o(T)$, i.e.\ the average regret $R_T/T\to 0$.
+
+\subsection{Adam updates}
+With step size $\alpha_t$, decay rates $\beta_1,\beta_2\in[0,1)$, and $m_0=v_0=0$, Adam maintains
+\begin{align}
+m_t &= \beta_1 m_{t-1} + (1-\beta_1)\,g_t, \label{eq:m}\\
+v_t &= \beta_2 v_{t-1} + (1-\beta_2)\,g_t^{2}, \label{eq:v}\\
+x_{t+1} &= \Proj\!\Big(x_t - \alpha_t\,\frac{m_t}{\sqrt{v_t}}\Big), \label{eq:adam}
+\end{align}
+where $\Proj$ is Euclidean projection onto $\mathcal{F}$ and all operations are coordinate-wise (bias correction is omitted, following the analysis in~\cite{reddi2018convergence}). Unrolling Eq.~\eqref{eq:v} gives $v_t=(1-\beta_2)\sum_{s=1}^{t}\beta_2^{\,t-s}g_s^2$, so a large gradient at step $s$ is forgotten geometrically at rate $\beta_2$.
+
+\subsection{The differential metric matrix}
+Writing the update as a preconditioned step with $V_t=\mathrm{diag}(v_t)$, the standard regret proof for adaptive methods controls the change in the effective inverse learning rate,
+\begin{equation}
+\Gamma_t \;\triangleq\; \frac{\mathrm{diag}(\sqrt{v_t})}{\alpha_t}-\frac{\mathrm{diag}(\sqrt{v_{t-1}})}{\alpha_{t-1}}.
+\label{eq:gamma}
+\end{equation}
+The OCO proof requires $\Gamma_t\succeq 0$ for all $t$. This holds for AdaGrad, where $v_t$ is a running sum and therefore non-decreasing. Because Adam computes $v_t$ via an EMA, $v_t$ shrinks whenever a large gradient is followed by smaller ones, generating negative entries in $\Gamma_t$ and breaking the theoretical guarantee.
+
+\subsection{AMSGrad correction}
+AMSGrad~\cite{reddi2018convergence} keeps Eqs.~\eqref{eq:m}--\eqref{eq:v} but replaces the denominator with a running maximum:
+\begin{align}
+\hat v_t &= \max(\hat v_{t-1},\, v_t), \label{eq:vhat}\\
+x_{t+1} &= \Proj\!\Big(x_t - \alpha_t\,\frac{m_t}{\sqrt{\hat v_t}}\Big). \label{eq:ams}
+\end{align}
+Since $\hat v_t$ is non-decreasing by construction, $\Gamma_t\succeq0$ is restored (with step size $\alpha_t=\alpha/\sqrt{t}$), and the standard analysis yields $R_T=O(\sqrt{T})$, hence $R_T/T\to0$.
+
+%====================================================================
+\section{Diagnostic Reproduction}
+We implemented a 1D OCO counterexample constrained to $\mathcal{F}=[-1,1]$, following~\cite{reddi2018convergence}. The loss is
+\begin{equation}
+f_t(x)=\begin{cases} C\,x, & t \bmod 3 = 1,\\ -x, & \text{otherwise},\end{cases}
+\label{eq:loss}
+\end{equation}
+so that every 3 steps the environment delivers a massive gradient $g_t=C=10$, and for the remaining two steps $g_t=-1$. The cumulative loss over one period is $(C-2)x=8x$, hence the globally optimal position is $x^\ast=-1$. Adam's EMA, however, over-weights the two small negative gradients once the burst has been forgotten, pulling $x_t$ in the wrong direction. If $x_t\approx+1$ for all $t$, each period incurs $2(C-2)=16$ excess loss, so $R_T\approx\tfrac{16}{3}T$ grows linearly.
+
+\subsection{Variance Memory Drain}
+Figure~\ref{fig:variance} demonstrates Adam's core mathematical failure point. During the non-burst steps, Adam's variance accumulator (red) exponentially crashes toward zero, forgetting the prior burst. AMSGrad (blue) locks the maximum variance horizontally.
+
+\subsection{Effective Step-Size Inflation}
+Because the coordinate update is scaled by $1/\sqrt{v_t}$, the memory drain has a direct inversely proportional effect on the learning rate. As shown in Figure~\ref{fig:stepsize}, every time Adam's variance crashes, its effective step size $\alpha_t/\sqrt{v_t}$ artificially spikes. This inflation occurs exactly when the gradient is $g_t=-1$, empowering the incorrect gradient to dominate the trajectory.
+
+\subsection{Parameter Divergence}
+The macro-level result of this inflation is catastrophic divergence. Figure~\ref{fig:trajectory} tracks the parameter $x_t$ over 500 steps. Adam is quickly ratcheted to the sub-optimal boundary $+1$, completely failing the OCO objective. By maintaining a stable effective learning rate, AMSGrad correctly descends to the global optimum $-1$.
+
+%====================================================================
+\section{Validation and Conclusion}
+By establishing an automated \texttt{pytest} architecture, we confirmed strict mathematical parity between our custom NumPy engine and PyTorch's backend (tolerance $1\times10^{-5}$); Table~\ref{tab:parity} summarizes the checks. Exposing the internal states proves that Adam's divergence is an algorithmic phenomenon, not an implementation artifact. Enforcing the AMSGrad running maximum is strictly necessary to survive high-magnitude sparsity.
+
+\begin{table}[h]
+\centering
+\small
+\caption{Parity checks between the NumPy implementation and PyTorch ($\text{tol}=1\times10^{-5}$).}
+\label{tab:parity}
+\begin{tabular}{@{}p{3.0cm}p{3.2cm}c@{}}
+\toprule
+\textbf{Quantity checked} & \textbf{PyTorch reference} & \textbf{Result}\\
+\midrule
+Adam iterate $x_t$ & \texttt{optim.Adam} & Pass\\
+AMSGrad iterate $x_t$ & \texttt{Adam(amsgrad=}\texttt{True)} & Pass\\
+First moment $m_t$ & \texttt{exp\_avg} & Pass\\
+Second moment $v_t$ & \texttt{exp\_avg\_sq} & Pass\\
+Running max $\hat v_t$ & \texttt{max\_exp\_avg\_sq} & Pass\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{thebibliography}{9}
+\bibitem{kingma2015adam}
+D.~P. Kingma and J.~Ba.
+\newblock Adam: A method for stochastic optimization.
+\newblock In \emph{International Conference on Learning Representations (ICLR)}, 2015.
+
+\bibitem{reddi2018convergence}
+S.~J. Reddi, S.~Kale, and S.~Kumar.
+\newblock On the convergence of Adam and beyond.
+\newblock In \emph{International Conference on Learning Representations (ICLR)}, 2018.
+
+\bibitem{zinkevich2003online}
+M.~Zinkevich.
+\newblock Online convex programming and generalized infinitesimal gradient ascent.
+\newblock In \emph{International Conference on Machine Learning (ICML)}, 2003.
+
+\bibitem{duchi2011adagrad}
+J.~Duchi, E.~Hazan, and Y.~Singer.
+\newblock Adaptive subgradient methods for online learning and stochastic optimization.
+\newblock \emph{Journal of Machine Learning Research}, 12:2121--2159, 2011.
+
+\bibitem{tieleman2012rmsprop}
+T.~Tieleman and G.~Hinton.
+\newblock Lecture 6.5 -- RMSProp: Divide the gradient by a running average of its recent magnitude.
+\newblock \emph{COURSERA: Neural Networks for Machine Learning}, 2012.
+\end{thebibliography}
+
+\end{document}
