@@ -13,7 +13,7 @@
 \newcommand{\Proj}{\Pi_{\mathcal{F}}}
 
 \title{Empirical Diagnostics of Adaptive Optimization:\\
-Replicating the Period-3 Convergence Trap in Adam\thanks{Code, figures, and the full \texttt{pytest} suite are available at \url{https://github.com/USERNAME/REPO} (replace with your repository URL).}}
+Replicating the Period-3 Convergence Trap in Adam\thanks{Code, figures, and the full \texttt{pytest} suite are available at \url{https://github.com/BinaryGenius06/adam-amsgrad-research}.}}
 \author{Suryansh U.\\
 Indian Institute of Technology (IIT) Delhi}
 \date{October 16, 2026}
@@ -22,7 +22,7 @@ Indian Institute of Technology (IIT) Delhi}
 \maketitle
 
 \begin{abstract}
-While the Adam optimizer dominates modern stochastic optimization, its formal convergence proof within the Online Convex Optimization (OCO) framework relies on a mathematically unfulfilled assumption. In environments characterized by sparse, highly informative gradient bursts, Adam's exponential moving average of squared gradients decays prematurely. This decay violates the positive semi-definiteness condition of the differential metric matrix ($\Gamma_t \succeq 0$), forcing divergence. We present a verified, from-scratch NumPy reproduction of this theoretical failure mechanism, expanding the diagnostic analysis across variance memory, parameter trajectories, and effective step-size inflation. The full implementation and testing suite are available at \url{https://github.com/USERNAME/REPO}.
+While the Adam optimizer dominates modern stochastic optimization, its formal convergence proof within the Online Convex Optimization (OCO) framework relies on a mathematically unfulfilled assumption. In environments characterized by sparse, highly informative gradient bursts, Adam's exponential moving average of squared gradients decays prematurely. This decay violates the positive semi-definiteness condition of the differential metric matrix ($\Gamma_t \succeq 0$), forcing divergence. We present a verified, from-scratch NumPy reproduction of this theoretical failure mechanism, expanding the diagnostic analysis across variance memory, parameter trajectories, and effective step-size inflation. The full implementation and testing suite are available at \url{https://github.com/BinaryGenius06/adam-amsgrad-research}.
 \end{abstract}
 
 %====================================================================
