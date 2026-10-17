@@ -14,7 +14,7 @@
 
 \title{Empirical Diagnostics of Adaptive Optimization:\\
 Replicating the Period-3 Convergence Trap in Adam\thanks{Code, figures, and the full \texttt{pytest} suite are available at \url{https://github.com/BinaryGenius06/adam-amsgrad-research}.}}
-\author{Suryansh U.\\
+\author{Suryansh Uttam\\
 Indian Institute of Technology (IIT) Delhi}
 \date{October 16, 2026}
 
@@ -34,13 +34,13 @@ Adam~\cite{kingma2015adam} synthesizes the coordinate-wise scaling of AdaGrad~\c
 \centering
 \begin{minipage}[t]{0.485\textwidth}
   \centering
-  \includegraphics[width=\linewidth]{figs/fig1_variance.png}
+  \includegraphics[width=\linewidth]{diagnostic_v_tracking.png}
   \caption{Adam (red) exhibits exponential memory decay during non-burst steps. AMSGrad (blue) enforces monotonicity.}
   \label{fig:variance}
 \end{minipage}\hfill
 \begin{minipage}[t]{0.485\textwidth}
   \centering
-  \includegraphics[width=\linewidth]{figs/fig2_stepsize.png}
+  \includegraphics[width=\linewidth]{effective_lr.png}
   \caption{Effective step size inflation. Adam's step size (red) spikes rhythmically due to the decaying denominator.}
   \label{fig:stepsize}
 \end{minipage}
@@ -48,7 +48,7 @@ Adam~\cite{kingma2015adam} synthesizes the coordinate-wise scaling of AdaGrad~\c
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.6\textwidth]{figs/fig3_trajectory.png}
+\includegraphics[width=0.6\textwidth]{trajectory.png}
 \caption{Optimization trajectory on $[-1,1]$. Adam diverges to the sub-optimal boundary while AMSGrad converges.}
 \label{fig:trajectory}
 \end{figure*}
